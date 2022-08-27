@@ -155,12 +155,34 @@ load() {
     fi
 }
 
+# This is a hook enabling users to gather coverage when using `run()`.
+#
+# You can run anything in this function so it should be possible to support most
+# (all?) coverage systems.
+#
+# Limitations: this will most likely only work for external binaries, shell
+# functions are very unlikely to be supported.
+#
+# Example usage: run kcov (https://github.com/SimonKagstrom/kcov) if the
+# environment variable ${KCOVERAGE_DIR} is set.
+# gather_coverage() {
+#   if [[ -n "${KCOVERAGE_DIR:-}" ]]; then
+#     kcov --bash-dont-parse-binary-dir "${KCOVERAGE_DIR}" "$@"
+#   else
+#     "$@"
+#   fi
+# }
+#
+gather_coverage() {
+  "$@"
+}
+
 bats_redirect_stderr_into_file() {
-  "$@" 2>>"$bats_run_separate_stderr_file" # use >> to see collisions' content
+  gather_coverage "$@" 2>>"$bats_run_separate_stderr_file" # use >> to see collisions' content
 }
 
 bats_merge_stdout_and_stderr() {
-  "$@" 2>&1
+  gather_coverage "$@" 2>&1
 }
 
 # write separate lines from <input-var> into <output-array>
