@@ -10,6 +10,31 @@ The format is based on [Keep a Changelog][kac] and this project adheres to
 
 ## [Unreleased]
 
+### Added
+
+* add installation instructions for Debian, Fedora, Gentoo, and OpenSUSE (#659)
+* add `--line-reference-format` to switch file/line references in stack traces (#665)
+  * `comma_line` (default): `file.bats, line 1`
+  * `colon`: `file.bats:1`
+  * `uri`: `file:///path/to/file.bats:1`
+  * `custom`: define your own formatter in `bats_format_file_line_reference_custom`
+
+### Fixed
+
+#### Documentation
+
+* improved clarity of section about output in free code (#671)
+* fixed typos (#673)
+* clarify use cases of `run` (#366)
+
+## [1.8.2] - 2022-10-19
+
+### Fixed
+
+* fix non zero return code on successful retried tests (#670)
+
+## [1.8.1] - 2022-10-19
+
 ### Fixed
 
 * `shfmt` all files and enforce via CI (#651)

@@ -14,7 +14,7 @@ For sample test files, see [examples](https://github.com/bats-core/bats-core/tre
 
 ## Tagging tests
 
-Startig with version 1.8.0, Bats comes with a tagging system, that allows users
+Starting with version 1.8.0, Bats comes with a tagging system that allows users
 to categorize their tests and filter according to those categories.
 
 Each test has a list of tags attached to it. Without specification, this list is empty.
@@ -175,6 +175,67 @@ into `$output`/`$stderr` and `${lines[@]}`/`${stderr_lines[@]}`.
 All additional parameters to run should come before the command.
 If you want to run a command that starts with `-`, prefix it with `--` to
 prevent `run` from parsing it as an option.
+
+### When not to use `run`
+
+In case you only need to check the command succeeded, it is better to not use `run`, since the following code
+
+```bash
+run -0 command args ...
+```
+
+is equivalent to
+
+```bash
+command args ...
+```
+
+(because bats sets `set -e` for all tests).
+
+__Note__: In contrast to the above, testing that a command failed is best done via
+
+```bash
+run ! command args ...
+```
+
+because 
+
+```bash
+! command args ...
+```
+
+will only fail the test if it is the last command and thereby determines the test function's exit code.
+This is due to Bash's decision to (counterintuitively?) not trigger `set -e` on `!` commands.
+(See also [the associated gotcha](https://bats-core.readthedocs.io/en/stable/gotchas.html#my-negated-statement-e-g-true-does-not-fail-the-test-even-when-it-should))
+
+
+### `run` and pipes
+
+Don't fool yourself with pipes when using `run`. Bash parses the pipe outside of `run`, not internal to its command. Take this example:
+
+```bash
+run command args ... | jq -e '.limit == 42'
+```
+
+Here, `jq` receives no input (which is captured by `run`), 
+executes no filters, and always succeeds, so the test does not work as 
+expected.
+
+Instead use a Bash subshell:
+
+```bash
+run bash -c "command args ... | jq -e '.limit == 42'"
+```
+
+This subshell is a fresh Bash environment, and will only inherit variables 
+and functions that are exported into it.
+
+```bash
+limit() { jq -e '.limit == 42'; }
+export -f limit
+run bash -c "command args ... | limit"
+```
+
 
 ## `load`: Share common code
 
@@ -414,13 +475,12 @@ is not yet upgraded.
 
 ## Code outside of test cases
 
-You can include code in your test file outside of `@test` functions.  For
-example, this may be useful if you want to check for dependencies and fail
-immediately if they're not present. However, any output that you print in code
-outside of `@test`, `setup` or `teardown` functions must be redirected to
-`stderr` (`>&2`). Otherwise, the output may cause Bats to fail by polluting the
-TAP stream on `stdout`.
+In general you should avoid code outside tests, because each test file will be evaluated many times.
+However, there are situations in which this might be useful, e.g. when you want to check for dependencies
+and fail immediately if they're not present. 
 
+In general, you should avoid printing outside of `@test`, `setup*` or `teardown*` functions.
+Have a look at section [printing to the terminal](#printing-to-the-terminal) for more details.
 ## File descriptor 3 (read this if Bats hangs)
 
 Bats makes a separation between output from the code under test and output that
@@ -467,20 +527,22 @@ your custom text. Here are some detailed guidelines to refer to:
     output. Otherwise, depending on the 3rd-party tools you use to analyze the
     TAP stream, you can encounter unexpected behavior or errors.
 
-- Printing **from within the `setup` or `teardown` functions**: The same hold
+- Printing **from within the `setup*` or `teardown*` functions**: The same hold
   true as for printing with test functions.
 
-- Printing **outside test or `setup`/`teardown` functions**:
-  - Regardless of where text is redirected to (stdout, stderr or file descriptor
-    3) text is immediately visible in the terminal.
+- Printing **outside test or `setup*`/`teardown*` functions**:
+  - You should avoid printing in free code: Due to the multiple executions
+    contexts (`setup_file`, multiple `@test`s)  of test files, output
+    will be printed more than once.
 
-  - Text printed in such a way, will disable pretty formatting. Also, it will
+  - Regardless of where text is redirected to (stdout, stderr or file descriptor 3)
+    text is immediately visible in the terminal, as it is not piped into the formatter.
+
+  - Text printed to stdout may interfere with formatters as it can
     make output non-compliant with the TAP spec. The reason for this is that
-    each test file is evaluated n+1 times (as mentioned
-    [earlier](#writing-tests)). The first run will cause such output to be
-    produced before the [_plan line_][tap-plan] is printed, contrary to the spec
-    that requires the _plan line_ to be either the first or the last line of the
-    output.
+    such output will be produced before the [_plan line_][tap-plan] is printed,
+    contrary to the spec that requires the _plan line_ to be either the first or
+    the last line of the output.
 
   - Due to internal pipes/redirects, output to stderr is always printed first.
 

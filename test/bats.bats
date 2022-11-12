@@ -259,6 +259,8 @@ setup() {
 
 @test "extended syntax" {
   emulate_bats_env
+  # shellcheck disable=SC2030,SC2031
+  REENTRANT_RUN_PRESERVE+=(BATS_LINE_REFERENCE_FORMAT)
   reentrant_run bats-exec-suite -x "$FIXTURE_ROOT/failing_and_passing.bats"
   echo "$output"
   [ $status -eq 1 ]
@@ -281,6 +283,8 @@ setup() {
 
 @test "extended timing syntax" {
   emulate_bats_env
+  # shellcheck disable=SC2030,SC2031
+  REENTRANT_RUN_PRESERVE+=(BATS_LINE_REFERENCE_FORMAT)
   reentrant_run bats-exec-suite -x -T "$FIXTURE_ROOT/failing_and_passing.bats"
   echo "$output"
   [ $status -eq 1 ]
@@ -294,6 +298,8 @@ setup() {
 
 @test "time is greater than 0ms for long test" {
   emulate_bats_env
+  # shellcheck disable=SC2030,SC2031
+  REENTRANT_RUN_PRESERVE+=(BATS_LINE_REFERENCE_FORMAT)
   reentrant_run bats-exec-suite -x -T "$FIXTURE_ROOT/run_long_command.bats"
   echo "$output"
   [ $status -eq 0 ]
@@ -1032,12 +1038,12 @@ END_OF_ERR_MSG
   [ "${lines[1]}" == 'ok 1 no failure prints no output' ]
   # ^ no output despite --show-output-of-passing-tests, because there is no failure
   [ "${lines[2]}" == 'not ok 2 failure prints output' ]
-  [ "${lines[3]}" == "# (in test file $RELATIVE_FIXTURE_ROOT/print_output_on_failure.bats, line 6)" ]
-  [ "${lines[4]}" == "#   \`run -1 echo \"fail hard\"' failed, expected exit code 1, got 0" ]
+  [ "${lines[3]}" == "# (in test file $RELATIVE_FIXTURE_ROOT/print_output_on_failure.bats, line 7)" ]
+  [ "${lines[4]}" == "#   \`false' failed" ]
   [ "${lines[5]}" == '# Last output:' ]
   [ "${lines[6]}" == '# fail hard' ]
   [ "${lines[7]}" == 'not ok 3 empty output on failure' ]
-  [ "${lines[8]}" == "# (in test file $RELATIVE_FIXTURE_ROOT/print_output_on_failure.bats, line 10)" ]
+  [ "${lines[8]}" == "# (in test file $RELATIVE_FIXTURE_ROOT/print_output_on_failure.bats, line 11)" ]
   [ "${lines[9]}" == "#   \`false' failed" ]
   [ ${#lines[@]} -eq 10 ]
 }
@@ -1048,14 +1054,14 @@ END_OF_ERR_MSG
   [ "${lines[1]}" == 'ok 1 no failure prints no output' ]
   # ^ no output despite --show-output-of-passing-tests, because there is no failure
   [ "${lines[2]}" == 'not ok 2 failure prints output' ]
-  [ "${lines[3]}" == "# (in test file $RELATIVE_FIXTURE_ROOT/print_output_on_failure_with_stderr.bats, line 7)" ]
-  [ "${lines[4]}" == "#   \`run -1 --separate-stderr bash -c 'echo \"fail hard\"; echo with stderr >&2'' failed, expected exit code 1, got 0" ]
+  [ "${lines[3]}" == "# (in test file $RELATIVE_FIXTURE_ROOT/print_output_on_failure_with_stderr.bats, line 8)" ]
+  [ "${lines[4]}" == "#   \`false' failed" ]
   [ "${lines[5]}" == '# Last output:' ]
   [ "${lines[6]}" == '# fail hard' ]
   [ "${lines[7]}" == '# Last stderr:' ]
   [ "${lines[8]}" == '# with stderr' ]
   [ "${lines[9]}" == 'not ok 3 empty output on failure' ]
-  [ "${lines[10]}" == "# (in test file $RELATIVE_FIXTURE_ROOT/print_output_on_failure_with_stderr.bats, line 11)" ]
+  [ "${lines[10]}" == "# (in test file $RELATIVE_FIXTURE_ROOT/print_output_on_failure_with_stderr.bats, line 12)" ]
   [ "${lines[11]}" == "#   \`false' failed" ]
   [ ${#lines[@]} -eq 12 ]
 }
@@ -1433,6 +1439,7 @@ enforce_own_process_group() {
 }
 
 @test "BATS_TEST_RETRIES allows for retrying tests" {
+  # shellcheck disable=SC2030
   export LOG="$BATS_TEST_TMPDIR/call.log"
   bats_require_minimum_version 1.5.0
   reentrant_run ! bats "$FIXTURE_ROOT/retry.bats"
@@ -1479,4 +1486,38 @@ enforce_own_process_group() {
   [ "${lines[5]}" == 'test_Override_retries teardown 2' ]
   [ "${#lines[@]}" -eq 6 ]
 
+}
+
+@test "Exit code is zero after successful retry (see #660)" {
+  # shellcheck disable=SC2031
+  export LOG="$BATS_TEST_TMPDIR/call.log"
+  bats_require_minimum_version 1.5.0
+  reentrant_run -0 bats "$FIXTURE_ROOT/retry_success.bats"
+  [ "${lines[0]}" == '1..1' ]
+  [ "${lines[1]}" == 'ok 1 Fail once' ]
+  [ ${#lines[@]} == 2 ]
+}
+
+@test "Error on invalid --line-reference-format" {
+  bats_require_minimum_version 1.5.0
+
+  reentrant_run -1 bats --line-reference-format invalid "$FIXTURE_ROOT/passing.bats"
+  [ "${lines[0]}" == "Error: Invalid BATS_LINE_REFERENCE_FORMAT 'invalid' (e.g. via --line-reference-format)" ]
+}
+
+@test "--line-reference-format switches format" {
+  bats_require_minimum_version 1.5.0
+
+  reentrant_run -1 bats --line-reference-format colon "$FIXTURE_ROOT/failing.bats"
+  [ "${lines[2]}" == "# (in test file $RELATIVE_FIXTURE_ROOT/failing.bats:4)" ]
+
+  reentrant_run -1 bats --line-reference-format uri "$FIXTURE_ROOT/failing.bats"
+  [ "${lines[2]}" == "# (in test file file://$FIXTURE_ROOT/failing.bats:4)" ]
+
+  bats_format_file_line_reference_custom() {
+    printf -v "$output" "%s<-%d" "$1" "$2"
+  }
+  export -f bats_format_file_line_reference_custom
+  reentrant_run -1 bats --line-reference-format custom "$FIXTURE_ROOT/failing.bats"
+  [ "${lines[2]}" == "# (in test file $RELATIVE_FIXTURE_ROOT/failing.bats<-4)" ]
 }
