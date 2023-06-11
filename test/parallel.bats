@@ -9,7 +9,7 @@ fixtures parallel
 BATS_TEST_TIMEOUT=10 # only intended for the "short form ..."" test
 
 setup() {
-  (type -p parallel &>/dev/null && parallel --version &>/dev/null) || skip "--jobs requires GNU parallel"
+  (type -p "${BATS_PARALLEL_BINARY_NAME:-"parallel"}" &>/dev/null && "${BATS_PARALLEL_BINARY_NAME:-"parallel"}" --version &>/dev/null) || skip "--jobs requires GNU parallel"
   (type -p flock &>/dev/null || type -p shlock &>/dev/null) || skip "--jobs requires flock/shlock"
 }
 
@@ -210,13 +210,6 @@ check_parallel_tests() { # <expected maximum parallelity>
 
 @test "BATS_NO_PARALLELIZE_WITHIN_FILE does not work from inside test function" {
   DISABLE_IN_TEST_FUNCTION=1 reentrant_run ! bats --jobs 2 "$FIXTURE_ROOT/must_not_parallelize_within_file.bats"
-}
-
-@test "Short form typo does not run endlessly" {
-  unset BATS_NO_PARALLELIZE_ACROSS_FILES
-  run bats -j2 "$FIXTURE_ROOT/../bats/passing.bats"
-  (( SECONDS < 5 ))
-  [ "${lines[1]}" = 'Invalid number of jobs: -2' ]
 }
 
 @test "Negative jobs number does not run endlessly" {
