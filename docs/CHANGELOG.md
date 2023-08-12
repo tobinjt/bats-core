@@ -8,7 +8,22 @@ The format is based on [Keep a Changelog][kac] and this project adheres to
 [kac]: https://keepachangelog.com/en/1.0.0/
 [semver]: https://semver.org/
 
+
 ## [Unreleased]
+
+### Added
+
+* hardened CI scripts by using hashes instead of versions for actions (#754)
+* add security.md (#762)
+* add codespell CI checks (#720)
+
+### Fixed
+
+#### Documentation
+
+* clarify docker usage (#741)
+
+## [1.10.0] - 2023-07-15
 
 ### Added
 
@@ -18,6 +33,8 @@ The format is based on [Keep a Changelog][kac] and this project adheres to
 * add tests for `--formatter cat` (#710)
 * test coverage in CI (#718)
 * Support for [rush](https://github.com/shenwei356/rush) as alternative to GNU parallel (#729)
+* add `bats_pipe` helper function for `run` that executes `\|` as pipes (#663)
+* publish docker images to ghcr.io (additionally to Dockerhub) (#740)
 
 ### Documentation
 
